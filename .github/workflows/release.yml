@@ -1,0 +1,104 @@
+name: Release Go Binaries
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  APP_NAME: obs-keypress-stats
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            ext: '.exe'
+
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+
+      - name: Install build dependencies (for linux build)
+        if: matrix.goos == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxtst-dev \
+            xcb \
+            libxcb-xkb-dev \
+            x11-xkb-utils \
+            libx11-xcb-dev \
+            libxkbcommon-x11-dev  \
+            libxkbcommon-dev
+
+      - name: Install UPX
+        if: matrix.goos == 'linux' || matrix.goos == 'windows'
+        run: |
+          if [ "${{ matrix.goos }}" = "linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y upx
+          else
+            choco install upx -y
+          fi
+        shell: bash
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download Go dependencies
+        run: go mod download
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+        run: |
+          go build -ldflags="-s -w" -o ${{ env.APP_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
+
+      - name: Compress binary with UPX
+        if: matrix.goos == 'linux' || matrix.goos == 'windows'
+        run: |
+          upx --best --lzma ${{ env.APP_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
+
+      - name: Archive binary
+        run: |
+          tar -czvf ${{ env.APP_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz ${{ env.APP_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.APP_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          tag_name: v0.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
