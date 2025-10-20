@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <number-flow class="hidden"/>
+
+    <script type="module">
+        import 'https://esm.sh/number-flow'
+
+        const flow = document.querySelector('number-flow')
+        flow.numberSuffix = " keys pressed per stream"
+
+        const eventSource = new EventSource("http://localhost:8088/events");
+
+        eventSource.onopen = () => flow.classList.remove('hidden')
+        eventSource.onmessage = (e) => flow.update(e.data)
+        eventSource.onerror = () => flow.classList.add('hidden')
+    </script>
+
+    <style>
+        number-flow {
+            background: rgba(0, 0, 0, 0.30);
+            font-family: "JetBrains Mono", monospace;
+            border-radius: 5px;
+            padding: 3px 10px;
+            color: white;
+
+            transition: opacity .3s;
+        }
+
+        .hidden {
+            opacity: 0;
+        }
+    </style>
+</body>
+</html>
