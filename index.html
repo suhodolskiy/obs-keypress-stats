@@ -16,7 +16,7 @@
         const flow = document.querySelector('number-flow')
         flow.numberSuffix = " keys pressed per stream"
 
-        const eventSource = new EventSource("http://localhost:8088/events");
+        const eventSource = new EventSource("http://{{ .Addr }}/events");
 
         eventSource.onopen = () => flow.classList.remove('hidden')
         eventSource.onmessage = (e) => flow.update(e.data)

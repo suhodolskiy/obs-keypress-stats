@@ -12,16 +12,18 @@ import (
 )
 
 func main() {
-	addr := flag.String("addr", ":8088", "HTTP server address")
-	tplPath := flag.String("tpl", "", "Template path")
+	addr := flag.String("addr", "localhost:8088", "Address for the HTTP server to listen on")
+	template := flag.String("template", "", "Path to the custom HTML template file (e.g. index.html)")
+	initialCount := flag.Int("initial-count", 0, "Initial value of the counter")
+	stateFile := flag.String("state-file", "./initialCount.txt", "Path to the state file (used to save and restore state)")
 	flag.Parse()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var (
-		count  = ReadCount("./count.txt")
-		server = NewServer(*tplPath)
-	)
+	server := NewServer(*template)
+	if c := ReadCount(*stateFile); c >= *initialCount {
+		*initialCount = c
+	}
 
 	go func() {
 		s := hook.Start()
@@ -34,8 +36,8 @@ func main() {
 					continue
 				}
 
-				count++
-				server.Broadcast(count)
+				*initialCount++
+				server.Broadcast(*initialCount)
 			case <-ctx.Done():
 				log.Println("Key press listener stopped ⌨️")
 				return
@@ -52,6 +54,6 @@ func main() {
 	log.Println("Shutting down...")
 	cancel()
 
-	PersistCount("./count.txt", count)
+	PersistCount(*stateFile, *initialCount)
 	server.Stop()
 }

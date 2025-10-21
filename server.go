@@ -5,6 +5,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -13,24 +14,26 @@ import (
 )
 
 //go:embed index.html
-var tpl embed.FS
+var data embed.FS
 
 type Server struct {
+	template     *template.Template
 	templatePath string
 	srv          *http.Server
 	broker       *Broker
 }
 
 func NewServer(templatePath string) *Server {
-	server := Server{
-		broker: NewBroker(),
+	tpl, err := template.ParseFS(data, "index.html")
+	if err != nil {
+		log.Fatalf("Error parsing template: %v", err)
 	}
 
-	if templatePath != "" {
-		server.templatePath = templatePath
+	return &Server{
+		template:     tpl,
+		templatePath: templatePath,
+		broker:       NewBroker(),
 	}
-
-	return &server
 }
 
 func (s *Server) Broadcast(count int) {
@@ -69,6 +72,8 @@ func (s *Server) Start(addr string) {
 
 	mux.HandleFunc(
 		"/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
 			if s.templatePath != "" {
 				exePath, err := os.Executable()
 				if err != nil {
@@ -79,14 +84,9 @@ func (s *Server) Start(addr string) {
 
 				http.ServeFile(w, r, tplPath)
 			} else {
-				data, err := tpl.ReadFile("index.html")
-				if err != nil {
-					http.Error(w, "File not found", http.StatusNotFound)
-					return
+				if err := s.template.Execute(w, map[string]any{"Addr": addr}); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
 				}
-
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				w.Write(data)
 			}
 		},
 	)
