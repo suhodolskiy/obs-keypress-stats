@@ -15,7 +15,7 @@ func main() {
 	addr := flag.String("addr", "localhost:8088", "Address for the HTTP server to listen on")
 	template := flag.String("template", "", "Path to the custom HTML template file (e.g. index.html)")
 	initialCount := flag.Int("initial-count", 0, "Initial value of the counter")
-	stateFile := flag.String("state-file", "./initialCount.txt", "Path to the state file (used to save and restore state)")
+	stateFile := flag.String("state-file", "./state.txt", "Path to the state file (used to save and restore state)")
 	flag.Parse()
 
 	ctx, cancel := context.WithCancel(context.Background())
