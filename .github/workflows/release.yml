@@ -4,6 +4,9 @@ on:
   release:
     types: [created]
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for release'
 
 permissions:
   contents: write
@@ -99,6 +102,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.APP_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
-          tag_name: v0.1.0
+          tag_name: ${{ github.event.inputs.tag_name || github.event.release.tag_name || github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
